@@ -7,7 +7,7 @@ from app.models import Product, PurchaseOrder, PurchaseOrderItem, Supplier, Tran
 from app.services.metrics_service import build_metrics
 from app.services.planning import quantize_money, quantize_qty, to_decimal
 from app.utils.parsing import as_date, date_end, date_start
-from app.utils.serialize import product_code
+from app.utils.serialize import product_code, safe_int
 
 
 def build_report(kind, business_id, args):
@@ -94,7 +94,7 @@ def _sales(business_id, args, forced_type=None):
     else:
         query = query.filter(Transaction.transaction_type.in_(["sale", "consumption", "wastage"]))
     if args.get("product_id"):
-        query = query.filter_by(product_id=int(args.get("product_id")))
+        query = query.filter_by(product_id=safe_int(args.get("product_id"), 0))
     category = (args.get("category") or "").strip().lower()
     rows = []
     for entry in query.order_by(Transaction.transaction_date.desc()).all():
@@ -251,7 +251,7 @@ def _purchase_orders(business_id, args):
 
 def _forecast(business_id, args):
     category = (args.get("category") or "").strip().lower()
-    product_id = int(args["product_id"]) if args.get("product_id") else None
+    product_id = safe_int(args.get("product_id"), 0) or None
     rows = []
     for metric in build_metrics(business_id):
         if category and metric["category"].lower() != category:

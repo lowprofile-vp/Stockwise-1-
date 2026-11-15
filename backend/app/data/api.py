@@ -371,12 +371,18 @@ class ApiQuery:
 
     def delete(self, synchronize_session=None):
         filters = self._resolved_filters()
+        if filters is None:
+            return 0
         if not filters:
             raise APIError("Refusing to delete every row.", 400)
         return _delete_where(self.table, filters)
 
     def update(self, values, synchronize_session=None, update_args=None):
         filters = self._resolved_filters()
+        if filters is None:
+            return 0
+        if not filters:
+            raise APIError("Refusing to update every row.", 400)
         payload = {}
         for key, value in values.items():
             name = key.key if hasattr(key, "key") else str(key)
@@ -789,10 +795,16 @@ def _bearer():
     return token
 
 
+_NAME_SAFE = "*._"
+_VALUE_SAFE = '",()*._-:'
+
+
 def query_string(params):
     # Leave PostgREST punctuation intact, but encode "+" so "+00:00" is not read as a space.
+    # The safe sets live in constants: a backslash inside an f-string expression is a
+    # SyntaxError before Python 3.12, which crashed the API on hosts running 3.11.
     return "&".join(
-        f"{quote(str(name), safe='*._')}={quote(str(value), safe='\",()*._-:')}"
+        quote(str(name), safe=_NAME_SAFE) + "=" + quote(str(value), safe=_VALUE_SAFE)
         for name, value in params
     )
 

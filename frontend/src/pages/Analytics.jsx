@@ -39,8 +39,8 @@ export default function Analytics() {
   }
 
   useEffect(() => {
-    api.get("/products", { params: { per_page: 100 } }).then((response) => setProducts(response.data.data));
-    api.get("/categories").then((response) => setCategories(response.data.data));
+    api.get("/products", { params: { per_page: 100 } }).then((response) => setProducts(response.data.data)).catch(() => {});
+    api.get("/categories").then((response) => setCategories(response.data.data)).catch(() => {});
     load(filters);
   }, []);
 

@@ -16,6 +16,7 @@ from app.models import Product, Transaction
 from app.services.planning import quantize_money, quantize_qty, to_decimal
 from app.services.stock_service import apply_stock_change, movement_payload
 from app.utils.parsing import as_date, date_end, date_start, future_limit, parse_datetime
+from app.utils.serialize import safe_int
 
 
 ALLOWED = {"sale", "consumption", "wastage", "adjustment"}
@@ -55,8 +56,8 @@ def list_transactions(business_id, args):
     if args.get("to"):
         query = query.filter(Transaction.transaction_date <= date_end(as_date_arg(args.get("to"))))
     total = query.count()
-    page = max(int(args.get("page", 1) or 1), 1)
-    per_page = min(max(int(args.get("per_page", 15) or 15), 1), 100)
+    page = max(safe_int(args.get("page"), 1), 1)
+    per_page = min(max(safe_int(args.get("per_page"), 15), 1), 100)
     rows = (
         query.order_by(Transaction.transaction_date.desc(), Transaction.transaction_id.desc())
         .offset((page - 1) * per_page)

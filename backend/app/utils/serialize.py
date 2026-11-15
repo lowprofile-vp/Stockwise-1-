@@ -22,9 +22,17 @@ def product_code(product_id):
     return f"SW-{int(product_id):04d}"
 
 
+def safe_int(value, default):
+    """Query-string integers. A bad value such as ?page=abc falls back instead of a 500."""
+    try:
+        return int(value or default)
+    except (TypeError, ValueError):
+        return default
+
+
 def paginate(items, page, per_page):
-    page = max(int(page or 1), 1)
-    per_page = min(max(int(per_page or 10), 1), 100)
+    page = max(safe_int(page, 1), 1)
+    per_page = min(max(safe_int(per_page, 10), 1), 100)
     total = len(items)
     pages = (total + per_page - 1) // per_page if total else 0
     start = (page - 1) * per_page

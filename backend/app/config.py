@@ -55,6 +55,9 @@ class Config:
     SUPABASE_PUBLISHABLE_KEY = (
         os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip() or os.getenv("SUPABASE_ANON_KEY", "").strip()
     )
+    # Optional. Only for projects still on the legacy HS256 JWT secret. Without it the
+    # API asks Supabase Auth to validate those tokens instead.
+    SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "").strip()
 
 
 class TestingConfig(Config):
@@ -67,11 +70,12 @@ class TestingConfig(Config):
         "connect_args": {"check_same_thread": False},
         "poolclass": StaticPool,
     }
-    JWT_SECRET_KEY = "test-secret"
+    JWT_SECRET_KEY = "test-secret-for-the-automated-suite-only"
     RETURN_RESET_TOKEN = True
 
 
 class ProductionConfig(Config):
+    IS_PRODUCTION = True
     RETURN_RESET_TOKEN = os.getenv("RETURN_RESET_TOKEN", "0") == "1"
 
 

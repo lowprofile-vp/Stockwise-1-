@@ -43,8 +43,8 @@ def create_app(config_name=None):
     jwt.init_app(app)
     _enable_sqlite_foreign_keys(app)
 
-    origins = [origin.strip() for origin in app.config["CORS_ORIGINS"].split(",") if origin.strip()]
-    CORS(app, resources={r"/api/*": {"origins": origins}}, supports_credentials=True)
+    _check_production_secrets(app)
+    CORS(app, resources={r"/api/*": {"origins": _cors_origins(app)}}, supports_credentials=True)
 
     from app import models  # noqa: F401  (register tables)
 
@@ -54,7 +54,67 @@ def create_app(config_name=None):
     _register_commands(app)
     _ensure_supabase_column(app)
     _register_data_api(app)
+    _create_local_tables(app)
     return app
+
+
+def _cors_origins(app):
+    """Browser origins allowed to call the API.
+
+    A trailing slash (https://app.vercel.app/) never matches the Origin header the
+    browser sends, so it is stripped. Entries with * become patterns, for example
+    https://*.vercel.app for preview deployments. FRONTEND_URL is always allowed.
+    """
+    import re
+
+    raw = [item for item in app.config["CORS_ORIGINS"].split(",")]
+    raw.append(app.config.get("FRONTEND_URL") or "")
+    origins = []
+    for item in raw:
+        origin = item.strip().rstrip("/")
+        if not origin:
+            continue
+        if origin == "*":
+            return "*"
+        if "*" in origin:
+            origin = "^" + re.escape(origin).replace(r"\*", "[^/]+") + "$"
+        if origin not in origins:
+            origins.append(origin)
+    return origins
+
+
+def _check_production_secrets(app):
+    if app.config.get("TESTING") or not app.config.get("IS_PRODUCTION"):
+        return
+    from app.config import _supabase_configured
+
+    if _supabase_configured():
+        return
+    secret = app.config.get("JWT_SECRET_KEY") or ""
+    if secret.startswith("dev-only") or len(secret) < 32:
+        raise RuntimeError(
+            "FLASK_ENV=production needs JWT_SECRET_KEY set to a random string of at least 32 characters "
+            "(or SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY for Supabase Auth)."
+        )
+
+
+def _create_local_tables(app):
+    """Create missing tables for the SQLAlchemy database (SQLite or DATABASE_URL Postgres).
+
+    With Supabase configured the tables come from supabase_schema.sql instead, and the
+    SQLAlchemy engine is an unused in-memory placeholder.
+    """
+    if app.config.get("TESTING"):
+        return
+    from app.config import _supabase_configured
+
+    if _supabase_configured():
+        return
+    with app.app_context():
+        try:
+            db.create_all()
+        except Exception:
+            app.logger.exception("Could not create database tables")
 
 
 def _register_data_api(app):

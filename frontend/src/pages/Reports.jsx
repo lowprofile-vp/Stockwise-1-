@@ -27,8 +27,8 @@ export default function Reports() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/products", { params: { per_page: 100 } }).then((response) => setProducts(response.data.data));
-    api.get("/categories").then((response) => setCategories(response.data.data));
+    api.get("/products", { params: { per_page: 100 } }).then((response) => setProducts(response.data.data)).catch(() => {});
+    api.get("/categories").then((response) => setCategories(response.data.data)).catch(() => {});
   }, []);
 
   async function load(event) {

@@ -220,6 +220,7 @@ Backend (`backend/.env`, from `backend/.env.example`):
 | `SUPABASE_URL` | Project URL. With the publishable key, sign-in and data both use Supabase |
 | `SUPABASE_PUBLISHABLE_KEY` | Publishable key from Project Settings → API. The browser may use it. Row Level Security still applies |
 | `JWT_SECRET_KEY` | Signing key for the built-in login. Required, and must be long, when `FLASK_ENV=production` and Supabase is not configured |
+| `SUPABASE_JWT_SECRET` | Optional. Legacy HS256 JWT secret for older Supabase projects |
 | `SECRET_KEY` | Flask secret |
 | `FLASK_ENV` | `development` or `production` |
 | `FLASK_DEBUG` | `1` locally |
@@ -365,23 +366,25 @@ Tests cover the hash map, heap, queue, sliding window, both sorts, the rice urge
 
 ## Deployment
 
-Frontend (Vercel):
+### One Vercel project (frontend and API together)
 
-- Root directory: `frontend`
-- Build command: `npm run build`
-- Output: `dist`
-- Set `VITE_API_URL` to the public API URL, including `/api`
-- `vercel.json` rewrites unknown paths to `index.html` so client routes work
+The repository root of this folder (`StockWise/`) holds `vercel.json`, `api/index.py` and a slim `requirements.txt`. Vercel builds the React app and runs the Flask API as a Python function on the same site, under `/api`. Nothing else needs hosting: the data lives in Supabase.
 
-Backend (Render):
+1. Import the repository in Vercel. Set **Root Directory** to `StockWise` (the folder that contains this README) and **Application Preset** to **Other**. Do not pick "Services" or "Import single project".
+2. Add environment variables:
+   - `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (used by the API)
+   - `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (the same two values, used by the browser)
+   - `FLASK_ENV=production`, `RETURN_RESET_TOKEN=0`, and a long random `SECRET_KEY`
+   - Leave `VITE_API_URL` unset. Production builds call `/api` on the same site, so CORS is not involved
+3. Deploy. Check `https://YOUR-APP.vercel.app/api/health` returns `{"status": "ok"}`.
+4. In Supabase → Authentication → URL configuration, set the Site URL to your Vercel URL and add `https://YOUR-APP.vercel.app/reset-password` to the redirect allow list.
+5. Run `backend/supabase_schema.sql` once in the Supabase SQL Editor if you have not already.
 
-- Root directory: `backend`
-- Build: `pip install -r requirements.txt`
-- Start: the `Procfile` (`gunicorn`)
-- Set `FLASK_ENV=production`, long `JWT_SECRET_KEY` and `SECRET_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `CORS_ORIGINS` (the Vercel origin), `FRONTEND_URL`, and `RETURN_RESET_TOKEN=0`
-- Run `backend/supabase_schema.sql` once in the Supabase SQL Editor
+Supabase is required for this setup. Vercel functions have no writable disk, so the local SQLite mode only works on your own machine.
 
-The hosted database is the Supabase project. The API uses the Data API and Row Level Security.
+### Alternative: API on Render
+
+`render.yaml` deploys only the API to Render (set `rootDir` to the backend folder's path in your repository). Then deploy `frontend` on Vercel with `VITE_API_URL` pointing at the Render URL, and set `CORS_ORIGINS` and `FRONTEND_URL` on Render to the Vercel URL. Render does not read the `Procfile`; the start command is in `render.yaml`.
 
 ## Known limits
 

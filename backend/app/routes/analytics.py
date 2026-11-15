@@ -7,6 +7,7 @@ from app.services.metrics_service import ENGINE, build_metrics
 from app.services.planning import formula_documentation
 from app.utils.auth import login_required
 from app.utils.parsing import parse_date
+from app.utils.serialize import safe_int
 
 bp = Blueprint("analytics", __name__)
 
@@ -31,7 +32,7 @@ def demand():
     if request.args.get("category"):
         metrics = [row for row in metrics if row["category"].lower() == request.args.get("category").lower()]
     if request.args.get("product_id"):
-        metrics = [row for row in metrics if row["product_id"] == int(request.args.get("product_id"))]
+        metrics = [row for row in metrics if row["product_id"] == safe_int(request.args.get("product_id"), 0)]
     payload["increasing"] = [row["name"] for row in metrics if row["trend"] == "increasing"]
     payload["declining"] = [row["name"] for row in metrics if row["trend"] == "declining"]
     payload["inventory_value_trend"] = inventory_value_trend(g.business.business_id, datetime.now().date())

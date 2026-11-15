@@ -1,8 +1,23 @@
 import axios from "axios";
 import { accessToken, supabase, supabaseEnabled } from "./supabase";
 
+// When the frontend and API are deployed together on Vercel, leave VITE_API_URL
+// unset: production builds call /api on the same site. Set it only to point at an
+// API hosted elsewhere. It is accepted with or without a trailing slash or /api.
+function resolveApiUrl() {
+  const raw = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+  if (!raw) {
+    // Deployed together on Vercel, the API lives on the same site at /api.
+    return import.meta.env.PROD ? "/api" : "http://localhost:5000/api";
+  }
+  return /\/api$/.test(raw) ? raw : `${raw}/api`;
+}
+
+export const API_URL = resolveApiUrl();
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: API_URL,
+  timeout: 60000,
 });
 
 api.interceptors.request.use(async (config) => {

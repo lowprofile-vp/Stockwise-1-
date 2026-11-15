@@ -16,10 +16,20 @@ export default function ResetPassword() {
 
   useEffect(() => {
     if (!supabaseEnabled) return undefined;
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
+    // The Supabase client reads the recovery link as soon as it loads, which can be
+    // before this page subscribes, so the PASSWORD_RECOVERY event may already be gone.
+    // Check for the session it created as well as listening for new events.
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) setReady(true);
     });
-    return () => data.subscription.unsubscribe();
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || (event === "INITIAL_SESSION" && session)) setReady(true);
+    });
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   async function submit(event) {

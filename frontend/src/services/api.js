@@ -10,6 +10,11 @@ function resolveApiUrl() {
     // Deployed together on Vercel, the API lives on the same site at /api.
     return import.meta.env.PROD ? "/api" : "http://localhost:5000/api";
   }
+  // A localhost API URL (usually from a local .env that got committed) can never
+  // work for visitors of the deployed site, so fall back to the same-site /api.
+  const pointsAtLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(raw);
+  const pageIsLocal = typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+  if (import.meta.env.PROD && pointsAtLocalhost && !pageIsLocal) return "/api";
   return /\/api$/.test(raw) ? raw : `${raw}/api`;
 }
 
